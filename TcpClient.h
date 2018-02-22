@@ -15,12 +15,14 @@ class TcpClient
 {
 public:
                        TcpClient(const std::string& a_host, int a_port);
-                      ~TcpClient();
+    virtual           ~TcpClient();
     void               send(const std::string& a_text);
     std::string        recv();
     void               connect();
     void               close();
 private:
+    void               setSocketOptions();
+protected:
     std::string        m_host;
     int                m_port;
     int                m_socket;
