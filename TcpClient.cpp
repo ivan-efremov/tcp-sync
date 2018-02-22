@@ -25,7 +25,7 @@ void TcpClient::setSocketOptions()
 {
     int johnNagle = 1;
     int cork = 0;
-    int maxBufferSize = 262144;
+    int maxBufferSize = 524288;
     struct timeval timeout = { 60, 0 };
     if(setsockopt(m_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
         throw SystemException("Can't setsockopt SO_RCVTIMEO");
@@ -92,7 +92,7 @@ void TcpClient::send(const std::string& a_text)
 
 std::string TcpClient::recv()
 {
-    std::string text(4096, '\0');
+    std::string text(524288, '\0');
     ssize_t n = ::recv(m_socket, (void*)text.data(), text.size(), 0);
     if(n >= 0L) {
         text.resize(n);
@@ -107,5 +107,6 @@ void TcpClient::close()
     if(m_socket != -1) {
         shutdown(m_socket, SHUT_RDWR);
         ::close(m_socket);
+        m_socket = -1;
     }
 }
