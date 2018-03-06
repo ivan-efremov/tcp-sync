@@ -21,11 +21,36 @@ TcpClient::~TcpClient()
     close();
 }
 
+std::string TcpClient::getHost() const
+{
+    return m_host;
+}
+
+int TcpClient::getPort() const
+{
+    return m_port;
+}
+
+int TcpClient::getSocket() const
+{
+    return m_socket;
+}
+
+bool TcpClient::isOpen() const
+{
+    int error = 0;
+    socklen_t errorLen = sizeof(error);
+    return m_socket > 0 &&
+           getsockopt(m_socket, SOL_SOCKET, SO_ERROR, &error, &errorLen) != -1 &&
+           error == 0;
+}
+
 void TcpClient::setSocketOptions()
 {
     int johnNagle = 1;
     int cork = 0;
-    int maxBufferSize = 524288;
+    int maxBufferSize = BUFFER_SIZE;
+    int keepALive = 1;
     struct timeval timeout = { 60, 0 };
     if(setsockopt(m_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
         throw SystemException("Can't setsockopt SO_RCVTIMEO");
@@ -45,6 +70,9 @@ void TcpClient::setSocketOptions()
     if(setsockopt(m_socket, SOL_SOCKET, SO_SNDBUF, (char*)&maxBufferSize, sizeof(maxBufferSize)) == -1) {
         throw SystemException("Can't setsockopt SO_SNDBUF");
     }
+    if(setsockopt(m_socket, SOL_SOCKET, SO_KEEPALIVE, (char*)&keepALive, sizeof(keepALive)) == -1) {
+        throw SystemException("Can't setsockopt SO_KEEPALIVE");
+    }
 }
 
 void TcpClient::connect()
@@ -56,7 +84,7 @@ void TcpClient::connect()
 
     struct hostent *server = gethostbyname(m_host.c_str());
     if(server == NULL) {
-        throw SystemException("No such host");
+        throw SystemException(std::string("No such host: ") + m_host);
     }
 
     bzero((char*)&m_sockaddr, sizeof(m_sockaddr));
@@ -71,7 +99,9 @@ void TcpClient::connect()
     setSocketOptions();
 
     if(::connect(m_socket, (struct sockaddr*)&m_sockaddr, sizeof(m_sockaddr)) < 0) {
-        throw SystemException("Can't connecting to");
+        throw SystemException(
+                std::string("Can't connecting to server: ") + m_host + ":" + std::to_string(m_port)
+            );
     }
 }
 
@@ -81,32 +111,51 @@ void TcpClient::send(const std::string& a_text)
     ssize_t     len = a_text.length();
     ssize_t     n   = 0L;
     do {
-        n = ::send(m_socket, (void*)(buf + n), (size_t)len, MSG_NOSIGNAL);
-        if(n >= 0L) {
-            len -= n;
+        ssize_t res = ::send(m_socket, (void*)(buf + n), (size_t)len, MSG_NOSIGNAL);
+        if(res > 0L) {
+            n += res;
+            len -= res;
         } else {
-            throw SystemException("Can't send data to server");
+            throw SystemException(
+                    std::string("Can't send data to server: " + m_host + ":" + std::to_string(m_port))
+                );
         }
     } while(len > 0L);
 }
 
 std::string TcpClient::recv()
 {
-    std::string text(524288, '\0');
-    ssize_t n = ::recv(m_socket, (void*)text.data(), text.size(), 0);
-    if(n >= 0L) {
-        text.resize(n);
-    } else {
-        throw SystemException("Can't receive a data from server");
+    char buf[BUFFER_SIZE];
+    ssize_t n = ::recv(m_socket, (void*)buf, BUFFER_SIZE, 0);
+    if(n <= 0L) {
+        throw SystemException(
+                std::string("Can't receive a data from server: " + m_host + ":" + std::to_string(m_port))
+            );
     }
-    return text;
+    return {buf, (size_t)n};
 }
 
 void TcpClient::close()
 {
     if(m_socket != -1) {
-        shutdown(m_socket, SHUT_RDWR);
+        ::shutdown(m_socket, SHUT_RDWR);
         ::close(m_socket);
         m_socket = -1;
     }
+}
+
+
+/**
+ * struct TcpClient::GetLine.
+ */
+std::string TcpClient::GetLine::operator()(PTcpClient a_tcpClient)
+{
+    std::string s;
+    size_t n;
+    while((n = m_line.find("\r\n")) == std::string::npos) {
+        m_line += a_tcpClient->recv();
+    }
+    s = m_line.substr(0, n);
+    m_line.erase(0, n + 2);
+    return s;
 }

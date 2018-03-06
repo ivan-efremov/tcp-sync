@@ -22,9 +22,13 @@ int main(int argc, const char *argv[])
             "Connection: close\r\n"
             "\r\n"
         );
-        std::string data(tcpClient->recv());
+        TcpClient::GetLine getLine;
+        std::string line;
+        do {
+            line = getLine(tcpClient);
+            std::cout << line.length() << ": " << line << std::endl;
+        } while(!line.empty());
         tcpClient->close();
-        std::cout << data << std::endl;
     } catch(const std::exception& err) {
         std::cerr << "ERROR: " << err.what() << std::endl;
     }
