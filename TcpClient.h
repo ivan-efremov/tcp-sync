@@ -19,7 +19,7 @@ typedef std::shared_ptr<TcpClient> PTcpClient;
 class TcpClient
 {
     enum {
-        BUFFER_SIZE = 524288
+        BUFFER_SIZE = 131072
     };
 public:
     struct GetLine {

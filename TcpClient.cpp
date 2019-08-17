@@ -61,9 +61,11 @@ void TcpClient::setSocketOptions()
     if(setsockopt(m_socket, SOL_TCP/*IPPROTO_TCP*/, TCP_NODELAY, (char*)&johnNagle, sizeof(johnNagle)) == -1) {
         throw SystemException("Can't setsockopt TCP_NODELAY");
     }
+#if 0
     if(setsockopt(m_socket, SOL_TCP, TCP_CORK, (char*)&cork, sizeof(cork)) == -1) {
         throw SystemException("Can't setsockopt TCP_CORK");
     }
+#endif
     if(setsockopt(m_socket, SOL_SOCKET, SO_RCVBUF, (char*)&maxBufferSize, sizeof(maxBufferSize)) == -1) {
         throw SystemException("Can't setsockopt SO_RCVBUF");
     }

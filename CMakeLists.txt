@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.2.2)
-project(redis-api)
+project(tcp-sync)
 
 set(CMAKE_CXX_STANDARD 11)
 
